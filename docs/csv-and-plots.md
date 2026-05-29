@@ -38,4 +38,31 @@ tools can distinguish "no data" from "value was zero".
 
 ## Trend plots
 
-Coming in v0.2 (batch 4).
+Lightweight matplotlib trend lines for any single metric. Install the optional
+`plots` extra first:
+
+```bash
+pip install 'garmin-sync[plots]'
+```
+
+```bash
+# Plot the last 30 days of HRV with a 7-day rolling mean
+garmin-sync plot --profile me --metric hrv --days 30 --out hrv.png
+
+# Steps over a custom range
+garmin-sync plot --profile me --metric steps --days 90 --end-date 2026-05-29 --out steps.png
+
+# See what metrics are supported
+garmin-sync plot --profile me --metric x --list-metrics --out /dev/null
+```
+
+### Supported metrics
+
+`hrv`, `hrv_5min_high`, `sleep_score`, `sleep_total_min`, `steps`,
+`body_battery_min`, `body_battery_max`, `stress_overall`, `rhr`, `vo2_max_running`
+
+### Notes
+
+- Missing days appear as gaps in the line (not as 0).
+- The rolling-mean line is hidden when `--days < --rolling`.
+- Plots use the Agg backend, so they work in headless environments (cron, CI).
