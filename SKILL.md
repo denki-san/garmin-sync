@@ -2,7 +2,7 @@
 name: garmin-sync
 version: 0.1.0
 description: "Sync Garmin Connect daily health data to local JSON for LLM analysis. Supports garmin.com / garmin.cn, multi-profile, CSV export, and matplotlib trend plots. garth SSO for the standard scope + garminconnect password fallback for RHR/VO2 Max."
-homepage: https://github.com/denkisan/garmin-sync
+homepage: https://github.com/denki-san/garmin-sync
 disable-model-invocation: true
 metadata:
   tags: ["garmin", "health", "fitness", "wearables"]

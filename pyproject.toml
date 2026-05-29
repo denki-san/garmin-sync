@@ -30,8 +30,8 @@ plots = ["matplotlib>=3.8"]
 dev = ["pytest>=8"]
 
 [project.urls]
-Homepage = "https://github.com/denkisan/garmin-sync"
-Repository = "https://github.com/denkisan/garmin-sync"
+Homepage = "https://github.com/denki-san/garmin-sync"
+Repository = "https://github.com/denki-san/garmin-sync"
 
 [project.scripts]
 garmin-sync = "garmin_sync.cli:main"
