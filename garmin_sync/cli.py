@@ -109,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
             for i in range(1, args.days + 1):
                 days_to_sync.append((date.today() - timedelta(days=i)).strftime("%Y-%m-%d"))
         for day in days_to_sync:
-            data = collect_day(client, day, profile=profile)
+            data = collect_day(client, day)
             path = write_day_json(data, Path(profile.output_dir))
             logging.info("wrote %s", path)
         return 0

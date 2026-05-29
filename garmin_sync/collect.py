@@ -1,14 +1,13 @@
 """Aggregate all per-metric fetchers into one ``dict`` per day.
 
-The output schema matches the JSON files written by the personal ``garmin-cn``
-skill, so the downstream Chinese-emoji renderer in that skill can keep working
-without changes.
+All fetchers accept the same ``garminconnect.Garmin`` client; the JSON schema
+matches what the personal ``garmin-cn`` skill writes so the downstream
+Chinese-emoji renderer keeps working without changes.
 """
 from __future__ import annotations
 
 import logging
 
-from .auth import get_garminconnect_client
 from .fetchers import (
     fetch_activities,
     fetch_body_battery,
@@ -23,73 +22,70 @@ from .fetchers import (
     fetch_training_readiness,
     fetch_vo2_max,
 )
-from .profile import Profile
 
 log = logging.getLogger("garmin_sync.collect")
 
 
-def collect_day(client, day: str, profile: Profile | None = None) -> dict:
-    """Return a single dict matching the JSON schema written by garmin-cn.
+def collect_day(gc, day: str) -> dict:
+    """Return one dict matching the JSON schema written under ``output_dir``.
 
-    The garth ``client`` covers everything except RHR / VO2 Max, which need a
-    garminconnect password-login client. When ``profile`` is supplied we look
-    one up lazily from the env. If unavailable, those two keys are simply absent.
+    ``gc`` is an authenticated :class:`garminconnect.Garmin` instance (typically
+    from :func:`garmin_sync.auth.authenticate`).
     """
     data: dict = {"date": day}
 
     try:
-        prof = client.get_basic_profile_data()
-        if prof and prof.get("displayName"):
-            data["display_name"] = prof["displayName"]
+        display_name = gc.get_full_name()
+        if display_name:
+            data["display_name"] = display_name
     except Exception:
         pass
 
-    sleep = fetch_sleep(client, day)
+    sleep = fetch_sleep(gc, day)
     if sleep:
         data["sleep"] = sleep
 
-    steps = fetch_steps(client, day)
+    steps = fetch_steps(gc, day)
     if steps:
         data["steps"] = steps
 
-    hrv = fetch_hrv(client, day)
+    hrv = fetch_hrv(gc, day)
     if hrv:
         data["hrv"] = hrv
 
-    spo2 = fetch_spo2(client, day)
+    spo2 = fetch_spo2(gc, day)
     if spo2:
         data["spo2"] = spo2
 
-    bb = fetch_body_battery(client, day)
+    bb = fetch_body_battery(gc, day)
     if bb:
         data["body_battery"] = bb
 
-    if profile is not None:
-        gc = get_garminconnect_client(profile)
-        rhr = fetch_resting_heart_rate(gc, day)
-        if rhr:
-            data["resting_heart_rate"] = rhr
-        vo2 = fetch_vo2_max(gc, day)
-        if vo2:
-            data["vo2_max"] = vo2
+    rhr = fetch_resting_heart_rate(gc, day)
+    if rhr:
+        data["resting_heart_rate"] = rhr
 
-    tr = fetch_training_readiness(client, day)
+    vo2 = fetch_vo2_max(gc, day)
+    if vo2:
+        data["vo2_max"] = vo2
+
+    tr = fetch_training_readiness(gc, day)
     if tr:
         data["training_readiness"] = tr
 
-    stress = fetch_stress(client, day)
+    stress = fetch_stress(gc, day)
     if stress:
         data["stress"] = stress
 
-    resp = fetch_respiration(client, day)
+    resp = fetch_respiration(gc, day)
     if resp:
         data["respiration"] = resp
 
-    im = fetch_intensity(client, day)
+    im = fetch_intensity(gc, day)
     if im:
         data["intensity_minutes"] = im
 
-    acts = fetch_activities(client, day)
+    acts = fetch_activities(gc, day)
     if acts:
         data["activities"] = acts
 

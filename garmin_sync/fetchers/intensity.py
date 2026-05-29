@@ -2,27 +2,23 @@
 from __future__ import annotations
 
 import logging
-from datetime import date as _date
 
 log = logging.getLogger("garmin_sync.fetch.intensity")
 
 
-def fetch_intensity(client, day: str) -> dict | None:
-    from garth.stats.intensity_minutes import DailyIntensityMinutes
-
+def fetch_intensity(gc, day: str) -> dict | None:
     try:
-        im_list = DailyIntensityMinutes.list(end=_date.fromisoformat(day), period=1, client=client)
-        if not im_list:
-            return None
-        im = im_list[0]
-        out: dict = {}
-        if im.moderate_value is not None:
-            out["moderate_min"] = im.moderate_value
-        if im.vigorous_value is not None:
-            out["vigorous_min"] = im.vigorous_value
-        if im.weekly_goal is not None:
-            out["weekly_goal_min"] = im.weekly_goal
-        return out or None
+        data = gc.get_intensity_minutes_data(day)
     except Exception as e:
         log.debug("intensity fetch failed: %s", e)
         return None
+    if not data:
+        return None
+    out: dict = {}
+    if data.get("moderateMinutes") is not None:
+        out["moderate_min"] = data["moderateMinutes"]
+    if data.get("vigorousMinutes") is not None:
+        out["vigorous_min"] = data["vigorousMinutes"]
+    if data.get("weekGoal") is not None:
+        out["weekly_goal_min"] = data["weekGoal"]
+    return out or None
