@@ -1,75 +1,53 @@
 # Garmin Connect API endpoints used by garmin-sync
 
-This is a quick reference of the endpoints each fetcher hits. Useful when
-diagnosing missing data or extending coverage.
+Quick reference of the endpoints each fetcher hits. Useful when diagnosing
+missing data or extending coverage. All calls go through one
+`garminconnect.Garmin` session per profile.
 
 > **Domain caveat**: `garmin.com` and `garmin.cn` share `/wellness-service/*`
-> backends, but most "advanced" metrics (Body Battery, Resting HR, VO2 Max,
-> Training Readiness, dailyHeartRate) **404 on garmin.cn** even with a valid
-> token. If you have a CN account that needs these metrics, see
-> [`migration-cn-to-com.md`](migration-cn-to-com.md) (not yet written).
+> backends, but Body Battery, Training Readiness, VO2 Max, and dailyHeartRate
+> **404 on garmin.cn** even with a valid token. CN accounts that need those
+> metrics have to migrate the account region (Garmin support can do it).
 
-## garth stats modules (both domains)
+## Per-fetcher endpoint map
 
-```python
-from datetime import date
-from garth.stats.steps import DailySteps
-from garth.stats.stress import DailyStress
-from garth.stats.hrv import DailyHRV
-from garth.stats.intensity_minutes import DailyIntensityMinutes
+| Fetcher | garminconnect call | HTTP endpoint |
+|---|---|---|
+| `sleep` | `Garmin.get_sleep_data(day)` | `/wellness-service/wellness/dailySleepData/{user}?date=...` |
+| `steps` | `Garmin.get_daily_steps(day, day)` | `/usersummary-service/stats/steps/daily/{start}/{end}` |
+| `hrv` | `Garmin.get_hrv_data(day)` | `/hrv-service/hrv/{day}` |
+| `spo2` | `Garmin.connectapi(...)` | `/wellness-service/wellness/dailySpo2/{day}` |
+| `body_battery` | `Garmin.connectapi(..., params={startDate, endDate})` | `/wellness-service/wellness/bodyBattery/reports/daily` |
+| `stress` | `Garmin.connectapi(...)` | `/usersummary-service/stats/stress/daily/{start}/{end}` |
+| `respiration` | `Garmin.connectapi(...)` | `/wellness-service/wellness/daily/respiration/{day}` |
+| `intensity_minutes` | `Garmin.get_intensity_minutes_data(day)` | `/usersummary-service/usersummary/im/daily/{user}` |
+| `training_readiness` | `Garmin.connectapi(...)` | `/metrics-service/metrics/trainingreadiness/{day}` |
+| `activities` | `Garmin.connectapi(...)` | `/activitylist-service/activities/search/activities?startDate&endDate` |
+| `resting_heart_rate` | `Garmin.get_rhr_day(day)` | `/userstats-service/wellness/daily/{user}` |
+| `vo2_max` | `Garmin.connectapi(...)` | `/metrics-service/metrics/maxmet/daily/{start}/{end}` |
 
-# Single day
-steps  = DailySteps.list(end=date.today(), period=1, client=client)
-stress = DailyStress.list(end=date.today(), period=1, client=client)
-hrv    = DailyHRV.list(end=date.today(), period=1, client=client)
-im     = DailyIntensityMinutes.list(end=date.today(), period=1, client=client)
-```
+## JSON-schema field mapping
 
-| Module | Fields used by garmin-sync |
+The fetchers normalise the raw camelCase Garmin response into the snake_case
+schema documented in [`../README.md`](../README.md). Highlights:
+
+| Our JSON path | Source field |
 |---|---|
-| `DailySteps` | `total_steps`, `total_distance` (m), `step_goal` |
-| `DailyStress` | `overall_stress_level` (0–100), `rest/low/medium/high_stress_duration` (s) |
-| `DailyHRV` | `weekly_avg`, `last_night_avg`, `last_night_5_min_high`, `baseline.{balanced_low, balanced_upper, marker_value}`, `status`, `feedback_phrase` |
-| `DailyIntensityMinutes` | `moderate_value`, `vigorous_value`, `weekly_goal` |
+| `sleep.score` | `dailySleepDTO.sleepScores.overall.value` |
+| `sleep.stages.{total,deep,light,rem,awake}_min` | `dailySleepDTO.{...}SleepSeconds // 60` |
+| `sleep.stages.avg_spo2` | `dailySleepDTO.averageSpO2Value` |
+| `steps.distance_km` | `totalDistance / 1000` (raw is metres, rounded to 3 dp) |
+| `hrv.{weekly_avg_ms, last_night_ms}` | `hrvSummary.{weeklyAvg, lastNightAvg}` |
+| `hrv.baseline.{balanced_low, balanced_upper, marker_value}` | `hrvSummary.baseline.{balancedLow, balancedUpper, markerValue}` |
+| `stress.{rest,low,medium,high}_min` | `values.{rest,low,medium,high}StressDuration / 60` |
+| `body_battery.{max, min}` | computed from `bodyBatteryValuesArray` |
+| `intensity_minutes.moderate_min` | `moderateMinutes` (NOT `weeklyModerate`, which is the rolling sum) |
+| `resting_heart_rate.value` | `allMetrics.metricsMap.WELLNESS_RESTING_HEART_RATE[-1].value` |
+| `vo2_max.{running, cycling}` | `generic.vo2MaxValue`, `cycling.vo2MaxValue` (loop over the list) |
 
-## SleepData (detailed stages)
+## Gotchas
 
-```python
-from garth.data.sleep import SleepData
-sd = SleepData.get("2026-05-15", client=client)  # day must be a "YYYY-MM-DD" str
-dto = sd.daily_sleep_dto
-```
-
-Fields read:
-
-- Duration: `sleep_time_seconds`, `deep/light/rem/awake_sleep_seconds`, `nap_time_seconds`
-- Boundaries: `sleep_start`, `sleep_end` (datetime)
-- Sleep-window SpO2: `average_sp_o2_value`, `lowest_sp_o2_value`, `average_sp_o2_hr_sleep`
-- Sleep-window respiration: `average_respiration_value`, `lowest_respiration_value`
-- Sleep score: `sleep_scores.overall.value` (with `DailySleep.list` as fallback)
-
-## Direct connectapi endpoints
-
-All hit via `client.connectapi(path)` on the garth client.
-
-| Endpoint | Returns | Notes |
-|---|---|---|
-| `/wellness-service/wellness/dailySpo2/{day}` | `averageSpO2`, `lowestSpO2`, `averageSpO2HR` | Daytime SpO2, distinct from sleep-window SpO2 |
-| `/wellness-service/wellness/bodyBattery/reports/daily?startDate&endDate` | List of `{charged, drained, bodyBatteryValuesArray}` | Field names are `charged`/`drained`, NOT `bodyBatteryChargeValue` |
-| `/wellness-service/wellness/daily/respiration/{day}` | `averageRespirationValue`, `lowest`, `highest`, `awake` | |
-| `/metrics-service/metrics/trainingreadiness/{day}` | `overall` score + per-factor map + status | |
-| `/activitylist-service/activities/search/activities?startDate={day}&endDate={day}` | List of activities | Per-activity `activityName`, `duration`, `distance`, `calories`, `startTimeLocal` |
-
-## garth scope limits (requires garminconnect fallback)
-
-These endpoints return `403` with garth's OAuth scope. The package falls back
-to `garminconnect` password login when `GARMIN_PASSWORD` is set (or available
-in the configured `password_env_var` / `~/.hermes/.env`).
-
-| Endpoint | Provided by | Notes |
-|---|---|---|
-| `/userstats-service/wellness/daily/{user}` (Resting HR) | `garminconnect.Garmin.get_rhr_day` | Returns nested `allMetrics.metricsMap.WELLNESS_RESTING_HEART_RATE` |
-| `/metrics-service/metrics/maxmet/daily/{start}/{end}` (VO2 Max) | `garminconnect.connectapi(...)` | **Single-day queries return `[]`**; we widen to 1-year range |
-
-See [`garminconnect-fallback.md`](garminconnect-fallback.md) for setup and data
-structure details.
+- **VO2 Max single-day usually returns `[]`** — the metric only updates after a tagged run/ride. The fetcher transparently widens to a 1-year range and takes the latest.
+- **Body Battery field names are `charged` / `drained`** — *not* `bodyBatteryChargeValue` / `bodyBatteryDrainValue` (a common documentation error).
+- **Stress bucket durations** live on `/usersummary-service/stats/stress/daily/...`, not on the per-3-min `/wellness-service/wellness/dailyStress/...` endpoint that `Garmin.get_stress_data` calls. The fetcher hits the usersummary path directly.
+- **`Garmin.get_spo2_data(day)` strips the `averageSpO2HR` field** present on the underlying `/wellness-service/wellness/dailySpo2/{day}` response. The fetcher calls `connectapi` directly to keep the field.

@@ -11,7 +11,7 @@
 直接读。
 
 ```bash
-pip install garmin-sync          # 核心
+pip install garmin-sync          # 核心（底层用 garminconnect）
 pip install 'garmin-sync[plots]' # 加上 matplotlib 趋势图
 ```
 
@@ -47,11 +47,12 @@ garmin-sync setup --domain garmin.com --email you@example.com
 ```
 
 OAuth token 会缓存到 `~/.garminconnect-garmin_com/`（或你在 profile 里
-配的 `token_dir`）。大约一年后 token 过期需要再跑一次。
+配的 `token_dir`）。token 会在临过期时自动刷新；改密码或者出现 token
+失效错误时重新跑 `setup` 即可。
 
-> **两步验证账号**：garth 的 SSO 流程目前不支持 MFA。请在跑一次性
-> setup 时**临时关闭佳明 app 里的两步验证**，跑完再打开即可，缓存的
-> token 不受影响。详见
+> **两步验证账号**：原生支持。`setup` 会在 Garmin 要求时**交互式
+> prompt 你输入 6 位 MFA 验证码**。token 持久化意味着一次 setup 输一
+> 次 MFA，之后每天 `sync` 都不用再输。详见
 > [`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md)。
 
 ### 2. 每日同步
@@ -130,11 +131,9 @@ garmin-sync sync  --profile me --days 1
 }
 ```
 
-静息心率和 VO2 Max 需要额外的 `garminconnect` 密码登录，因为 garth 的
-OAuth scope 拿不到这两个端点（会 403）。设置 `GARMIN_PASSWORD` 环境变量
-（或 profile 里的 `password_env_var`）就能启用，不设的话这两个 key 会
-安静地缺席，不影响其他数据。详见
-[`docs/garminconnect-fallback.md`](docs/garminconnect-fallback.md)。
+所有数据都通过同一个认证 session 拉取，**没有单独的 fallback 登录**。
+没出现的字段（比如某天没跑步 / 没骑车那 `vo2_max` 就没数据）就是设备
+那天没产出，不是认证问题。
 
 ## CSV 导出
 
@@ -192,13 +191,10 @@ write_day_json(data, profile.output_dir)
 是 404**——这几个数据只有 `garmin.com` 国际版账号才有。如果你是国区
 账号又想要全套数据，需要联系佳明客服把账号迁到国际版。
 
-**为什么写着 `garth` 已弃用？**
-上游 `garth` 项目进入了维护模式，现在还能用。哪天真不能用了，
-`garmin-sync` 会切到社区的新方案。数据抓取层是刻意写得很薄的——只
-有认证层那一块需要换。
-
 **支持两步验证吗？**
-目前不支持。setup 时临时关掉 2FA，跑完再开。token 有效期约 1 年。
+支持。`garmin-sync setup` 在 Garmin 要求时会交互式 prompt 你输 6 位
+MFA。token 持久化意味着一次 setup 输一次 MFA，之后 cron 跑 `sync` 都
+不用再输。
 
 **token 和密码存哪？**
 Token 以明文 JSON 存在 `token_dir`（默认 `~/.garminconnect-<domain>/`）。

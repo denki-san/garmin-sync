@@ -62,8 +62,8 @@ def fetch_hrv(gc, day: str) -> dict | None:
 
 
 def fetch_spo2(gc, day: str) -> dict | None:
-    # Use the same endpoint garth used directly so that the ``averageSpO2HR``
-    # field (which ``Garmin.get_spo2_data`` does not return) is preserved.
+    # Call the raw endpoint to keep ``averageSpO2HR`` (which
+    # ``Garmin.get_spo2_data`` strips from its return).
     try:
         spo2 = gc.connectapi(f"/wellness-service/wellness/dailySpo2/{day}")
     except Exception as e:

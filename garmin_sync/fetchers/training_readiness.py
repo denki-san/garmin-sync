@@ -14,8 +14,7 @@ def fetch_training_readiness(gc, day: str) -> dict | None:
         return None
     if not data:
         return None
-    # API returns a list (one entry per device that reported). Take the most
-    # recent. The legacy garth path also wrapped in a list.
+    # API returns a list (one entry per device that reported). Take the most recent.
     if isinstance(data, list):
         if not data:
             return None

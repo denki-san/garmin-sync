@@ -11,7 +11,7 @@ There's no daemon, no third-party server, no cloud — just a script and a
 folder of files your AI assistant (or your own scripts) can read.
 
 ```bash
-pip install garmin-sync          # core
+pip install garmin-sync          # core (garminconnect under the hood)
 pip install 'garmin-sync[plots]' # add matplotlib trend plots
 ```
 
@@ -48,11 +48,13 @@ garmin-sync setup --domain garmin.com --email you@example.com
 ```
 
 This caches OAuth tokens under `~/.garminconnect-garmin_com/` (or the
-`token_dir` you configured). Re-run roughly once a year when tokens expire.
+`token_dir` you configured). Tokens auto-refresh while you keep syncing;
+re-run `setup` if you change your Garmin password or hit a stale-token error.
 
-> 2FA accounts: garth's SSO flow doesn't currently handle MFA. Disable 2FA
-> on your Garmin account during the one-time setup, then re-enable it. See
-> [`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md).
+> **MFA accounts**: supported. `setup` will prompt for the 6-digit code
+> interactively when needed. See
+> [`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md) if you need
+> to pass it non-interactively (e.g. from cron).
 
 ### 2. Daily sync
 
@@ -130,11 +132,9 @@ Each day is one JSON file like `2026-05-28.json`:
 }
 ```
 
-Resting HR and VO2 Max need an extra `garminconnect` password login because
-the garth OAuth scope can't reach those endpoints. Configure
-`GARMIN_PASSWORD` (or `password_env_var` in your profile) to enable them;
-otherwise the keys are silently absent. Details:
-[`docs/garminconnect-fallback.md`](docs/garminconnect-fallback.md).
+All metrics are fetched through a single authenticated session — no separate
+fallback login. Keys that don't appear (e.g. `vo2_max` on a day with no
+tagged run) just weren't reported by the device that day.
 
 ## CSV export
 
@@ -194,15 +194,10 @@ Body Battery, Resting HR, VO2 Max, and Training Readiness return 404 on
 you have a CN account and want everything, you'll need to migrate (Garmin
 support can move accounts).
 
-**Why is `garth` listed as deprecated?**
-The upstream `garth` project is in maintenance mode. It still works today.
-If/when it stops, garmin-sync will switch to whatever the community
-consolidates around. The data fetchers are deliberately thin wrappers so the
-auth layer is the only thing that has to change.
-
 **Does it handle MFA?**
-Not currently. Disable 2FA during `setup`, then re-enable it. Tokens last
-~1 year before the next `setup` is needed.
+Yes. `garmin-sync setup` will prompt for the 6-digit code interactively
+when Garmin requires it. Token persistence means you only enter MFA once
+per setup, not on every `sync`.
 
 **Where do my tokens / passwords go?**
 Tokens cache as plain JSON in `token_dir` (default `~/.garminconnect-<domain>`).

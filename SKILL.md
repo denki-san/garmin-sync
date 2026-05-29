@@ -1,13 +1,13 @@
 ---
 name: garmin-sync
 version: 0.1.0
-description: "Sync Garmin Connect daily health data to local JSON for LLM analysis. Supports garmin.com / garmin.cn, multi-profile, CSV export, and matplotlib trend plots. garth SSO for the standard scope + garminconnect password fallback for RHR/VO2 Max."
+description: "Sync Garmin Connect daily health data to local JSON for LLM analysis. Supports garmin.com / garmin.cn, multi-profile, MFA, CSV export, and matplotlib trend plots."
 homepage: https://github.com/denki-san/garmin-sync
 disable-model-invocation: true
 metadata:
   tags: ["garmin", "health", "fitness", "wearables"]
   requires:
-    pips: ["garth", "garminconnect"]
+    pips: ["garminconnect"]
     pips_optional: ["matplotlib"]
     envs_optional: ["GARMIN_PASSWORD"]
 ---
@@ -76,14 +76,14 @@ avg_hrv = sum(d["hrv"]["last_night_ms"] for d in days if "hrv" in d) / len(days)
 | "HRV trend this week" | `hrv.last_night_ms` across 7 daily files |
 | "Was my Body Battery low yesterday?" | `body_battery.min`, `body_battery.drained` |
 | "How stressed have I been?" | `stress.overall` + `stress.{rest,low,medium,high}_min` |
-| "Resting HR trending up?" | `resting_heart_rate.value` (needs password fallback) |
+| "Resting HR trending up?" | `resting_heart_rate.value` |
 | "Did I exercise enough this week?" | `intensity_minutes.{moderate,vigorous}_min` + `weekly_goal_min` |
 
 ## When data is missing
 
 A key being absent from JSON means the fetcher returned nothing — usually
-because the device wasn't worn long enough, the endpoint 404'd for that
-domain, or (for RHR/VO2 Max) the password fallback isn't configured.
+because the device wasn't worn long enough, or the endpoint 404'd for that
+domain (Body Battery, Training Readiness, VO2 Max are only on garmin.com).
 
 Run `garmin-sync sync --verbose ...` to see which fetcher failed. See
 [docs/auth-troubleshooting.md](docs/auth-troubleshooting.md).

@@ -1,98 +1,95 @@
 # Authentication troubleshooting
 
-`garmin-sync` uses [`garth`](https://github.com/matin/garth) for the primary
-SSO flow and [`garminconnect`](https://github.com/cyberjunky/python-garminconnect)
-as a password-login fallback for a few advanced endpoints.
-
-> **Heads-up**: as of 2026, `garth` is in maintenance mode (see the deprecation
-> notice on the [garth repo](https://github.com/matin/garth/discussions/222)).
-> It still works against current Garmin Connect APIs, but the underlying
-> authentication endpoints are subject to change without notice. If `setup`
-> starts failing after a successful one-time auth, that's the first thing to
-> check.
+`garmin-sync` authenticates via [`garminconnect`](https://github.com/cyberjunky/python-garminconnect),
+which uses `curl_cffi` to mimic a real Chrome browser through Garmin's
+current SSO flow. There is no separate fallback path — all metrics flow
+through the same session.
 
 ## The setup flow
 
 ```bash
-garmin-sync setup --domain garmin.com --email you@example.com
-# enters interactive password prompt if --password not given
+garmin-sync setup --profile me --email you@example.com
+# Prompts for password (or set $GARMIN_PASSWORD); prompts for MFA code if needed
 ```
 
 What happens under the hood:
 
-1. GET `https://sso.<domain>/sso/embed` to grab the initial cookie.
-2. GET `https://sso.<domain>/sso/signin` to get a CSRF token.
-3. POST the username/password/CSRF as a form (`embed=true`).
-4. Parse the response HTML to extract `ticket=...`.
-5. Use the ticket against `/oauth-service/oauth/preauthorized` on `connectapi.<domain>` to exchange for OAuth1, then OAuth2 tokens.
-6. Write `oauth1_token.json` + `oauth2_token.json` into the profile's `token_dir`.
+1. POST your credentials to `sso.<domain>/sso/signin` over a Chrome-impersonated TLS session.
+2. If Garmin returns an MFA challenge, prompt for the 6-digit code (`input()`).
+3. Exchange the resulting ticket for OAuth1 + OAuth2 tokens via `/oauth-service/oauth/preauthorized`.
+4. Write `garmin_tokens.json` (a single file holding both tokens + refresh metadata) into the profile's `token_dir`.
 
-Tokens are valid roughly **1 year**, after which `setup` needs to run again.
+Subsequent `garmin-sync sync` runs load that file. The package transparently
+calls `_refresh_session()` when the access token is about to expire, so a
+healthy daily-cron setup should not need re-authentication for many months.
+
+## MFA
+
+Interactive prompt by default. To skip the prompt in non-interactive
+environments (e.g. cron), pre-generate the token by running `setup`
+yourself, then keep the token file alive — cron only needs `sync` after
+that, which never re-prompts.
+
+If your account uses an authenticator app (TOTP) you can also feed the code
+through a wrapper:
+
+```bash
+garmin-sync setup --profile me --email you@example.com < <(echo "$(oathtool --totp -b 'YOUR_TOTP_SECRET')")
+```
 
 ## Common errors
 
-### `setup` returns 429 immediately
+### `setup` returns 401 or "Invalid credentials"
 
-You're being rate-limited by Garmin's IP-level protection. Wait at least a few
-minutes between attempts. Hammering it can extend the cooldown.
+Double-check the email/password by signing in to Garmin Connect's web UI.
+If the password works there but `setup` fails, your account may be in a
+captcha-required state — log in once via the website (which clears the
+captcha flag) and retry.
 
-### `setup` returns 401 / "Account has 2FA enabled"
+### `setup` returns 429
 
-`garth`'s SSO flow does not support MFA prompts. Disable 2FA temporarily in
-the Garmin Connect mobile app, run `setup`, then re-enable it. Cached tokens
-keep working for ~1 year after that.
+You're being rate-limited by Garmin's IP-level protection. Wait several
+minutes between attempts; hammering it extends the cooldown.
 
-### `setup` works but `sync` returns "No cached tokens"
+### `setup` works but `sync` says "No cached tokens"
 
 The token directory differs between `setup` and `sync`. This usually means
 you passed `--token-dir` in one but not the other, or your `profile.token_dir`
-doesn't match. Run `garmin-sync sync --profile NAME` and watch the logged path.
+doesn't match. Run `garmin-sync sync --verbose --profile NAME` to see the
+exact path it's reading from.
 
-### Some metrics are missing (`spo2`, `body_battery`, `respiration`)
+### Some metrics missing from JSON
 
-These come from per-day `connectapi` endpoints that quietly return empty for
-days when the device wasn't worn long enough. Check a known-good day. If
-*every* day is empty, your account region may not be served by those endpoints
-(see "Domain caveat" in [`api-endpoints.md`](api-endpoints.md)).
+Most often the device wasn't worn long enough to produce that metric for
+the day in question. Verify by checking the metric in the Garmin Connect
+app for the same day. If the app shows a value but `garmin-sync` doesn't,
+file an issue with the verbose log.
 
-### `resting_heart_rate` / `vo2_max` always absent
+### `body_battery`, `training_readiness`, `vo2_max` always missing
 
-These need the garminconnect fallback. Make sure:
-
-1. `garminconnect` is installed (`pip install garminconnect`, or via `garmin-sync[plots]` doesn't include it — install separately if needed).
-2. Your profile has an `email` field (or `GARMIN_EMAIL` is set).
-3. The env var named by `password_env_var` (default `GARMIN_PASSWORD`) contains the account password, or `~/.hermes/.env` has a `GARMIN_PASSWORD=...` line.
-4. Run with `--verbose` to see why the fallback short-circuits.
-
-## Why password login for RHR / VO2 Max?
-
-Garmin's API gates endpoints by OAuth scope. The web-embed SSO scope that
-`garth` requests doesn't cover `/userstats-service/*` or
-`/metrics-service/metrics/maxmet/*` — both return `403`. `garminconnect`
-re-logs in with password, which (currently) yields a token with a wider scope
-that includes those paths.
-
-This is a known upstream quirk, not something garmin-sync invented; see the
-[garminconnect issue tracker](https://github.com/cyberjunky/python-garminconnect/issues)
-for context.
+Those endpoints **return 404 on `garmin.cn`** regardless of token — they
+only exist on `garmin.com`. If you have a `garmin.cn` account and want
+them, you'll need to migrate the account to the international region
+(Garmin support can do this).
 
 ## Re-authorizing
 
-When tokens expire (~1 year) or rotate after a Garmin Connect password change:
+When you change your Garmin Connect password or the token file gets
+corrupted:
 
 ```bash
-# Just re-run setup; it overwrites the existing token files.
-garmin-sync setup --profile me
+garmin-sync setup --profile me --email you@example.com
+# overwrites garmin_tokens.json with a fresh one
 ```
 
 Existing JSON data files in `output_dir` are untouched.
 
 ## Token isolation between domains
 
-`garmin.com` and `garmin.cn` tokens **cannot be swapped**. The garth Client
-binds its requests to the domain it was constructed with, but if you load a
-`.cn`-issued token into a Client constructed for `.com`, the loaded tokens
-override the domain and you end up calling the wrong host.
+`garmin.com` and `garmin.cn` tokens **cannot be swapped**. Always use a
+distinct `token_dir` per profile/domain.
 
-Always use a distinct `token_dir` per domain. Profiles handle this for you
-when each profile names its own `token_dir`.
+## Endpoint reference
+
+See [`api-endpoints.md`](api-endpoints.md) for the per-fetcher API paths and
+their domain availability.

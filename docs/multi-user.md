@@ -60,19 +60,20 @@ garmin-sync sync --profile me --output-dir /tmp/test --days 1
 ## Token isolation
 
 Each profile writes its `oauth1_token.json` / `oauth2_token.json` into its own
-`token_dir`. Never share one token dir between two domains — garth will silently
-overwrite the other domain's tokens.
+`token_dir`. Never share one token dir between two domains — the auth layer
+will silently overwrite the other domain's tokens.
 
-## Password fallback (RHR & VO2 Max)
+## Per-profile passwords
 
-These two metrics require garminconnect password login because the garth OAuth
-scope cannot reach them (403). Set the per-profile env var before running
-`sync`:
+`garmin-sync` only needs the password when running `setup` (or when cached
+tokens have fully expired and need a fresh login). For multiple accounts on
+one machine, give each profile a distinct `password_env_var` so they don't
+share a single `GARMIN_PASSWORD`:
 
 ```bash
 export SPOUSE_GARMIN_PASSWORD='...'
-garmin-sync sync --profile spouse --days 1
+garmin-sync setup --profile spouse --email spouse@example.com
 ```
 
-You can also put them in `~/.hermes/.env` (`KEY=value` per line); `garmin-sync`
-will read them from there if not in the environment.
+You can also put them in `~/.hermes/.env` (`KEY=value` per line); the auth
+loader reads them from there if they aren't in the environment.
