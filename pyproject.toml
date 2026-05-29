@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "garmin-sync"
+version = "0.1.0"
+description = "Sync Garmin Connect health data to local JSON for LLM analysis. Supports .com and .cn domains, multi-profile, CSV export, and trend plots."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "denkisan" }]
+keywords = ["garmin", "health", "fitness", "llm", "ai", "skill"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "garth>=0.4.47",
+    "garminconnect>=0.2.20",
+]
+
+[project.optional-dependencies]
+plots = ["matplotlib>=3.8"]
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/denkisan/garmin-sync"
+Repository = "https://github.com/denkisan/garmin-sync"
+
+[project.scripts]
+garmin-sync = "garmin_sync.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["garmin_sync*"]

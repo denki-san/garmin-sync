@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+*.env
+health/
+output/
+.DS_Store
+.idea/
+.vscode/
+_original_sync.py
