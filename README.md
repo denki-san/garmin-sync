@@ -40,22 +40,22 @@ One JSON file per day (e.g. `2026-05-28.json`). Top-level keys:
 
 | Key | What it covers |
 |---|---|
-| `sleep` | Score, start/end, stage breakdown (deep/light/REM/awake/nap), sleep-window SpO2 + HR + respiration + stress |
-| `steps` | Total steps, distance, goal |
-| `hrv` | Weekly avg, last-night avg, 5-min high, balanced baseline + marker, status, feedback phrase |
-| `spo2` | Daytime SpO2 — avg, min, avg HR during readings |
-| `body_battery` | Charged, drained, daily max, daily min |
-| `resting_heart_rate` | RHR + min/max HR when available |
-| `heart_rate` | Daily HR range (min / max / resting) + 7-day avg RHR |
-| `calories` | Total / active / BMR (Garmin-computed energy expenditure) |
-| `floors` | Floors ascended / descended / daily goal |
-| `activity_seconds` | Daily time budget — sleeping / sedentary / active / highly active |
-| `vo2_max` | Running + cycling values (last reported, since updates are sparse) |
-| `stress` | Overall 0–100 + duration in rest / low / medium / high buckets |
-| `respiration` | Lowest / highest / avg / awake respiration rates |
-| `intensity_minutes` | Moderate + vigorous + weekly goal |
-| `training_readiness` *(summary only)* | Overall score + per-factor + status |
-| `activities` *(summary only)* | List of `{name, duration_sec, distance_km, calories}` per activity |
+| 🛏️ `sleep` | Score, start/end, stage breakdown (deep/light/REM/awake/nap), sleep-window SpO2 + HR + respiration + stress |
+| 👣 `steps` | Total steps, distance, goal |
+| 📊 `hrv` | Weekly avg, last-night avg, 5-min high, balanced baseline + marker, status, feedback phrase |
+| 🩸 `spo2` | Daytime SpO2 — avg, min, avg HR during readings |
+| 🔋 `body_battery` | Charged, drained, daily max, daily min |
+| ❤️ `resting_heart_rate` | RHR + min/max HR when available |
+| 🫀 `heart_rate` | Daily HR range (min / max / resting) + 7-day avg RHR |
+| 🔥 `calories` | Total / active / BMR (Garmin-computed energy expenditure) |
+| ⬆️ `floors` | Floors ascended / descended / daily goal |
+| ⏱️ `activity_seconds` | Daily time budget — sleeping / sedentary / active / highly active |
+| 💨 `vo2_max` | Running + cycling values (last reported, since updates are sparse) |
+| 😰 `stress` | Overall 0–100 + duration in rest / low / medium / high buckets |
+| 🫁 `respiration` | Lowest / highest / avg / awake respiration rates |
+| 💪 `intensity_minutes` | Moderate + vigorous + weekly goal |
+| 🚦 `training_readiness` *(summary only)* | Overall score + per-factor + status |
+| 🏃 `activities` *(summary only)* | List of `{name, duration_sec, distance_km, calories}` per activity |
 
 [See the full sample JSON further down.](#sample-output)
 
