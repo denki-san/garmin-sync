@@ -190,6 +190,12 @@ Excel/Numbers 能区分"没数据"和"值是 0"。详见
 
 ## 趋势图
 
+![HRV 21 天趋势 — 真实数据](docs/screenshots/hrv-sample.png)
+
+*由 `garmin-sync plot --metric hrv --days 21` 生成。蓝色实线 = 每晚 HRV，
+红色虚线 = 7 天滑动均值。左边的几个断点是真实的——那几天手表没采到 HRV，
+程序选择留白而不是补 0。Sample 数据：2026 年 5 月。*
+
 ```bash
 pip install 'garmin-sync[plots]'
 garmin-sync plot --profile me --metric hrv --days 30 --out hrv.png
