@@ -16,16 +16,24 @@ pip install 'garmin-sync[plots]' # 加上 matplotlib 趋势图
 
 <table>
 <tr>
-<th width="25%">HRV（每晚）</th>
-<th width="25%">睡眠得分</th>
-<th width="25%">每日步数</th>
-<th width="25%">Body Battery（当日最低）</th>
+<td width="50%" align="center">
+  <a href="docs/screenshots/hero-hrv.png"><img src="docs/screenshots/hero-hrv.png" alt="HRV 趋势"></a>
+  <br/><sub><b>HRV（每晚）</b></sub>
+</td>
+<td width="50%" align="center">
+  <a href="docs/screenshots/hero-sleep-score.png"><img src="docs/screenshots/hero-sleep-score.png" alt="睡眠得分趋势"></a>
+  <br/><sub><b>睡眠得分</b></sub>
+</td>
 </tr>
 <tr>
-<td><a href="docs/screenshots/hero-hrv.png"><img src="docs/screenshots/hero-hrv.png" alt="HRV 趋势"></a></td>
-<td><a href="docs/screenshots/hero-sleep-score.png"><img src="docs/screenshots/hero-sleep-score.png" alt="睡眠得分趋势"></a></td>
-<td><a href="docs/screenshots/hero-steps.png"><img src="docs/screenshots/hero-steps.png" alt="每日步数"></a></td>
-<td><a href="docs/screenshots/hero-body-battery.png"><img src="docs/screenshots/hero-body-battery.png" alt="Body Battery 最低值"></a></td>
+<td width="50%" align="center">
+  <a href="docs/screenshots/hero-steps.png"><img src="docs/screenshots/hero-steps.png" alt="每日步数"></a>
+  <br/><sub><b>每日步数</b></sub>
+</td>
+<td width="50%" align="center">
+  <a href="docs/screenshots/hero-body-battery.png"><img src="docs/screenshots/hero-body-battery.png" alt="Body Battery 最低值"></a>
+  <br/><sub><b>Body Battery（当日最低）</b></sub>
+</td>
 </tr>
 </table>
 
