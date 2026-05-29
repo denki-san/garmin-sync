@@ -9,6 +9,7 @@ from .intensity import fetch_intensity
 from .activities import fetch_activities
 from .resting_heart_rate import fetch_resting_heart_rate
 from .vo2_max import fetch_vo2_max
+from .daily_summary import fetch_daily_summary
 
 __all__ = [
     "fetch_sleep",
@@ -23,4 +24,5 @@ __all__ = [
     "fetch_activities",
     "fetch_resting_heart_rate",
     "fetch_vo2_max",
+    "fetch_daily_summary",
 ]

@@ -1,41 +1,83 @@
 # garmin-sync
 
-> 把佳明（Garmin Connect）的健康数据同步成本地 JSON 文件。专为
+> 把佳明（Garmin Connect）的**健康数据**同步成本地 JSON 文件。专为
 > AI 助手（Claude Code / Codex / Hermes / ChatGPT 等）消费而设计。
 
 [English](./README.md) · [简体中文](./README.zh-CN.md)
 
-`garmin-sync` 是一个极简的 Python CLI + 库，把佳明账号每日健康数据拉
-到本地、写成结构化 JSON 文件。没有 daemon，没有第三方服务器，没有云
-端——只有一个脚本和一个数据目录，你的 AI 助手（或你自己的脚本）可以
-直接读。
+`garmin-sync` 是一个极简的 Python CLI + 库，把佳明账号每日**健康指标**
+拉到本地、写成结构化 JSON 文件。没有 daemon，没有第三方服务器，没有云
+端——只有一个脚本和一个数据目录，AI 助手可以直接读。
 
 ```bash
 pip install garmin-sync          # 核心（底层用 garminconnect）
 pip install 'garmin-sync[plots]' # 加上 matplotlib 趋势图
 ```
 
+## 健康优先，不做训练分析
+
+这是一个有意的范围选择：**这个工具是健康/wellness 助手，不是训练分析平台**。
+我们同步那些用来回答"我最近状态怎么样？"的指标——睡眠、HRV、压力、Body
+Battery、静息心率、SpO2、呼吸、每日活动概览——但**有意跳过**：
+
+- GPS 轨迹、FIT 文件、活动里的每秒 cadence/功率/心率时序
+- PMC（CTL/ATL/TSB）、训练负荷、Training Effect、Recovery Time
+- Workout / 训练计划管理
+
+`activities` 和 `training_readiness` 是收的，**但只到摘要级**（activities
+只有 name + 时长 + 距离 + 卡路里；readiness 只有总分 + status）。如果你
+想要完整训练分析，[`nrvim/garmin-givemydata`](https://github.com/nrvim/garmin-givemydata)
+或 [`tcgoetz/GarminDB`](https://github.com/tcgoetz/GarminDB) 更合适。
+
+## 抓了哪些数据
+
+每天一个 JSON 文件（例如 `2026-05-28.json`），顶层 key：
+
+| Key | 含义 |
+|---|---|
+| `sleep` | 睡眠得分、入睡/起床时间、stages（深/浅/REM/清醒/午睡）、睡眠期间 SpO2 + 心率 + 呼吸率 + 压力 |
+| `steps` | 总步数、距离、目标 |
+| `hrv` | 周平均、昨晚平均、5min 高值、balanced baseline + marker、状态、feedback 短语 |
+| `spo2` | 白天血氧 — 平均、最低、读数时的平均心率 |
+| `body_battery` | 充电、消耗、当日最高、当日最低 |
+| `resting_heart_rate` | 静息心率（可能含 min/max HR） |
+| `heart_rate` | 全天心率范围（min / max / resting）+ 7 日平均 RHR |
+| `calories` | 总 / 活动 / 基础代谢（佳明算出的能量消耗） |
+| `floors` | 上行楼层 / 下行楼层 / 日目标 |
+| `activity_seconds` | 每日时间分配 — 睡眠 / 久坐 / 活动 / 高强度活动 秒数 |
+| `vo2_max` | 跑步 + 骑行 VO2 Max（最近一次报告值，因为更新很稀疏） |
+| `stress` | 综合压力 0–100 + 放松/低/中/高 各档时长 |
+| `respiration` | 最低 / 最高 / 平均 / 清醒时呼吸率 |
+| `intensity_minutes` | 中等 + 高强度 + 周目标 |
+| `training_readiness` *（仅摘要）* | 总分 + 各因子 + status |
+| `activities` *（仅摘要）* | 当日活动列表，每条 `{name, duration_sec, distance_km, calories}` |
+
+[完整 JSON 样本见下方。](#sample-output)
+
 ## 为什么做这个
 
-佳明 app 看每日情况还行，但你没法问它"我最近一个月的 HRV 趋势和睡眠分
+佳明 app 看每日数据还行，但你没法问它"我最近一个月的 HRV 趋势和睡眠分
 对应得怎么样？"或者"周四头痛那天我 Body Battery 债务是不是特别重？"——
-这些问题适合 LLM 来答。
+这些问题适合 LLM 来答，需要数据是 LLM 能消费的格式落在本地。
 
-`garmin-sync` 就是把数据从佳明搬到 AI 助手能消费的格式的那段管道。一
-旦某天的 JSON 落到磁盘上，后面所有事（分析、日报、告警、画图）都只是
-读文件而已。
+`garmin-sync` 就是那段管道。一旦某天的 JSON 落到磁盘上，后面所有事
+（分析、日报、告警、画图）都只是读文件而已。
 
 ### 和相邻项目对比
 
-|   | garmin-sync | [nftechie/garmin-skill](https://github.com/nftechie/garmin-skill) | [arpanghosh8453/garmin-grafana](https://github.com/arpanghosh8453/garmin-grafana) |
-|---|---|---|---|
-| 架构 | Python → 本地 JSON | 第三方 SaaS（Transition） | Docker + InfluxDB + Grafana |
-| 数据归属 | 完全本地 | 在 Transition 服务器 | 本地 Docker 数据卷 |
-| 运维成本 | `pip install` + cron | API key | Docker 全家桶 |
-| LLM 友好输出 | ✅ JSON +（可选）Markdown | ❌ 只有 AI Coach 对话 | ❌ Grafana 看板 |
-| `garmin.cn` 支持 | ✅ | 未验证 | ✅ |
-| 可视化 | 轻量 matplotlib | — | 完整 Grafana |
-| 离线可用 | ✅ | ❌ | ✅ |
+|   | garmin-sync | [nrvim/garmin-givemydata](https://github.com/nrvim/garmin-givemydata) ⭐108 | [tcgoetz/GarminDB](https://github.com/tcgoetz/GarminDB) ⭐3.1k | [arpanghosh8453/garmin-grafana](https://github.com/arpanghosh8453/garmin-grafana) |
+|---|---|---|---|---|
+| 抓取范围 | **只健康** (~14 个 metric) | **全量** — 48 张 SQLite 表 + FIT 文件 | **全量** — daily + activities + FIT | 全量 via InfluxDB |
+| 存储 | 一天一 JSON 文件 | SQLite + 原始 FIT | SQLite + 原始 FIT | Docker + InfluxDB |
+| AI 接入 | 读 JSON 文件（任何工具） | 内置 **MCP server**（45 个 tool） | Jupyter notebooks | Grafana 看板 |
+| 回填速度 | 每天几秒 | 首次 ~30 min for 10 年 | 类似 givemydata | 类似（Docker） |
+| 安装 | `pip install` | `pip install` / `brew tap` | `pip install` / `make` | Docker compose |
+| 认证 | garminconnect (curl_cffi) | garminconnect（类似） | 自己 fork garth | garminconnect |
+| 协议 | MIT | AGPL-3.0 | GPL-2.0 | BSD-3 |
+
+**一句话**：想要**佳明全量数据 + MCP server**，去 `garmin-givemydata`；
+想要**成熟的 SQL 表 + Jupyter notebook**，去 `GarminDB`；想要**轻量
+per-day JSON 文件、AI 助手能直接读**，就用这个。
 
 ## 快速上手
 
@@ -43,28 +85,23 @@ pip install 'garmin-sync[plots]' # 加上 matplotlib 趋势图
 
 ```bash
 garmin-sync setup --domain garmin.com --email you@example.com
-# 会提示输入密码；或者预先 export GARMIN_PASSWORD=...
+# 会提示输入密码（或预设 $GARMIN_PASSWORD）；需要 MFA 时会交互式 prompt
 ```
 
-OAuth token 会缓存到 `~/.garminconnect-garmin_com/`（或你在 profile 里
-配的 `token_dir`）。token 会在临过期时自动刷新；改密码或者出现 token
-失效错误时重新跑 `setup` 即可。
+OAuth token 缓存到 `~/.garminconnect-garmin_com/`（或 profile 配的
+`token_dir`）。token 会在临过期时自动刷新；改密码或者出现 token 失效错
+误时重新跑 `setup` 即可。
 
 > **两步验证账号**：原生支持。`setup` 会在 Garmin 要求时**交互式
 > prompt 你输入 6 位 MFA 验证码**。token 持久化意味着一次 setup 输一
-> 次 MFA，之后每天 `sync` 都不用再输。详见
+> 次 MFA，之后每天 `sync` 都不用再输。非交互场景（cron / TOTP）见
 > [`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md)。
 
 ### 2. 每日同步
 
 ```bash
-# 同步昨天
-garmin-sync sync --domain garmin.com --days 1
-
-# 回填最近 30 天
-garmin-sync sync --domain garmin.com --days 30
-
-# 指定某一天
+garmin-sync sync --domain garmin.com --days 1     # 同步昨天
+garmin-sync sync --domain garmin.com --days 30    # 回填最近 30 天
 garmin-sync sync --domain garmin.com --date 2026-05-15
 ```
 
@@ -89,29 +126,27 @@ output_dir       = "~/garmin-data/spouse"
 password_env_var = "SPOUSE_GARMIN_PASSWORD"
 ```
 
-之后命令更短：
-
 ```bash
-garmin-sync setup --profile me --email you@example.com
 garmin-sync sync  --profile me --days 1
 ```
 
 完整说明见 [`docs/multi-user.md`](docs/multi-user.md)。
 
-## 同步了哪些数据
-
-每天一个 JSON 文件，例如 `2026-05-28.json`：
+## Sample output
 
 ```json
 {
   "date": "2026-05-28",
+  "display_name": "Lei",
   "sleep": {
     "score": 88,
     "start": "2026-05-28 00:56",
     "end": "2026-05-28 08:30",
     "stages": {
       "total_min": 450, "deep_min": 114, "light_min": 272, "rem_min": 64,
-      "awake_min": 4, "avg_respiration": 12.0, "avg_sleep_stress": 10.0
+      "awake_min": 4, "avg_spo2": 93.0, "lowest_spo2": 86,
+      "avg_spo2_hr": 60.0, "avg_respiration": 12.0,
+      "lowest_respiration": 10.0, "avg_sleep_stress": 10.0
     }
   },
   "steps": {"total": 8833, "distance_km": 7.269, "goal": 7540},
@@ -121,19 +156,26 @@ garmin-sync sync  --profile me --days 1
     "baseline": {"balanced_low": 39, "balanced_upper": 51, "marker_value": 0.58},
     "feedback_phrase": "HRV_BALANCED_6"
   },
-  "spo2":           {"avg_pct": 93.0, "min_pct": 86, "avg_hr_bpm": 60.0},
-  "body_battery":   {"charged": 86, "drained": 92, "max": 99, "min": 7},
-  "stress":         {"overall": 43, "level": "中", "rest_min": 494, ...},
-  "respiration":    {"low": 9.0, "high": 22.0},
-  "intensity_minutes": {"moderate_min": 3, "vigorous_min": 0, "weekly_goal_min": 150},
-  "resting_heart_rate": {"value": 56.0},          // 需要密码登录 fallback
-  "vo2_max":            {"running": 43.0, "running_precise": 42.5}   // 同上
+  "spo2":              {"avg_pct": 93.0, "min_pct": 86, "avg_hr_bpm": 60.0},
+  "body_battery":      {"charged": 86, "drained": 92, "max": 99, "min": 7},
+  "resting_heart_rate":{"value": 56.0},
+  "heart_rate":        {"min": 54, "max": 130, "resting": 56, "last_7d_avg_resting": 56},
+  "calories":          {"total_kcal": 2556, "active_kcal": 537, "bmr_kcal": 2019},
+  "floors":            {"ascended": 0.0, "descended": 6.45, "goal": 10},
+  "activity_seconds":  {"highly_active_sec": 977, "active_sec": 8202, "sedentary_sec": 49981, "sleeping_sec": 27240},
+  "vo2_max":           {"running": 43.0, "running_precise": 42.5},
+  "stress":            {"overall": 43, "level": "中", "rest_min": 494, "low_min": 189, "medium_min": 259, "high_min": 288},
+  "respiration":       {"low": 9.0, "high": 22.0},
+  "intensity_minutes": {"moderate_min": 3, "vigorous_min": 0, "weekly_goal_min": 150}
 }
 ```
 
-所有数据都通过同一个认证 session 拉取，**没有单独的 fallback 登录**。
-没出现的字段（比如某天没跑步 / 没骑车那 `vo2_max` 就没数据）就是设备
-那天没产出，不是认证问题。
+## API 用量
+
+`sync` 一天打 **13–14 个 HTTP 请求**（VO2 Max 当天空数据时会触发 1 次
+回退到 1 年范围查询，多 1 次）。每天一次 cron 远远在 Garmin 单账号限流
+之内；一次性回填 `--days 365` 也没问题。循环 `sync --days 1` 一直跑
+迟早会触发 429。
 
 ## CSV 导出
 
@@ -142,28 +184,24 @@ garmin-sync export-csv --profile me --start 2026-05-01 --end 2026-05-29 \
     --out ~/garmin-may.csv
 ```
 
-把每日 JSON 扁平化成一行一天的 CSV，列结构稳定。缺失值用空字符串而不
-是 `0`——所以 Excel/Numbers 能区分"没数据"和"值是 0"。详见
+每日 JSON 扁平化成 CSV，列结构稳定。缺失值用空字符串而不是 `0`——所以
+Excel/Numbers 能区分"没数据"和"值是 0"。详见
 [`docs/csv-and-plots.md`](docs/csv-and-plots.md)。
 
 ## 趋势图
 
 ```bash
 pip install 'garmin-sync[plots]'
-
 garmin-sync plot --profile me --metric hrv --days 30 --out hrv.png
 garmin-sync plot --profile me --metric sleep_score --days 90 --out sleep.png
 ```
 
-单指标线图 + 7 天滑动均值。headless 安全（Agg 后端），扔进 cron 没问题。
-
-支持的 metric：`hrv` / `hrv_5min_high` / `sleep_score` / `sleep_total_min` /
-`steps` / `body_battery_min` / `body_battery_max` / `stress_overall` /
-`rhr` / `vo2_max_running`。
+单指标线图 + 7 天滑动均值。headless 安全（Agg 后端）。支持的 metric：
+`hrv` / `hrv_5min_high` / `sleep_score` / `sleep_total_min` / `steps` /
+`body_battery_min` / `body_battery_max` / `stress_overall` / `rhr` /
+`vo2_max_running`。
 
 ## Cron 示例
-
-Linux/macOS，每天早上 6:30 同步：
 
 ```cron
 30 6 * * * GARMIN_PASSWORD='...' /usr/local/bin/garmin-sync sync --profile me --days 1 >> /var/log/garmin-sync.log 2>&1
@@ -179,32 +217,30 @@ from garmin_sync.storage import write_day_json
 
 profile = load_profile("me")
 client = authenticate(profile)
-data = collect_day(client, "2026-05-28", profile=profile)
+data = collect_day(client, "2026-05-28")
 write_day_json(data, profile.output_dir)
 ```
 
 ## FAQ
 
 **`garmin.cn` 国区账号能用吗？**
-睡眠、步数、HRV、SpO2、压力、运动强度、活动都能拿。但 Body Battery、
-静息心率、VO2 Max、训练准备度在 `garmin.cn` 上**无论 token 怎么发都
-是 404**——这几个数据只有 `garmin.com` 国际版账号才有。如果你是国区
-账号又想要全套数据，需要联系佳明客服把账号迁到国际版。
+睡眠、步数、HRV、SpO2、压力、运动强度、daily summary、活动这些**已确认
+能用**。Body Battery、静息心率、VO2 Max、训练准备度、Respiration **几
+乎肯定 404**（基于社区报告 + 路径前缀推论；我没在 `.cn` 账号上直接验
+证过）。如果国区账号又想要这几个数据，需要联系佳明客服把账号迁到国际
+版。
 
 **支持两步验证吗？**
-支持。`garmin-sync setup` 在 Garmin 要求时会交互式 prompt 你输 6 位
-MFA。token 持久化意味着一次 setup 输一次 MFA，之后 cron 跑 `sync` 都
-不用再输。
+支持。`setup` 在 Garmin 要求时会交互式 prompt 你输 6 位 MFA。token 持
+久化意味着一次 setup 输一次 MFA，之后 cron 跑 `sync` 都不用再输。
 
 **token 和密码存哪？**
 Token 以明文 JSON 存在 `token_dir`（默认 `~/.garminconnect-<domain>/`）。
-密码只从环境变量读（或者 `~/.hermes/.env`，存在的话），从不回写到磁
-盘。
+密码只从环境变量读（或者 `~/.hermes/.env`，存在的话），从不回写到磁盘。
 
 **会被佳明限流吗？**
-`garmin-sync sync --days 30` 大概是 12 个 API × 30 天 ≈ 360 次请求。佳
-明的单账号限流挺宽松，每天 cron 一次完全没问题；循环调用迟早会触发
-429。
+`sync --days N` 大约 13×N 个 HTTP 请求。每天 cron 一次没问题；一次性回
+填 1-2 年也行；循环 `sync --days 1` 一直跑迟早 429。
 
 ## 状态
 

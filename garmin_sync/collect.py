@@ -11,6 +11,7 @@ import logging
 from .fetchers import (
     fetch_activities,
     fetch_body_battery,
+    fetch_daily_summary,
     fetch_hrv,
     fetch_intensity,
     fetch_resting_heart_rate,
@@ -64,6 +65,11 @@ def collect_day(gc, day: str) -> dict:
     rhr = fetch_resting_heart_rate(gc, day)
     if rhr:
         data["resting_heart_rate"] = rhr
+
+    # One call → heart_rate / calories / floors / activity_seconds (merged at top level)
+    daily = fetch_daily_summary(gc, day)
+    if daily:
+        data.update(daily)
 
     vo2 = fetch_vo2_max(gc, day)
     if vo2:
