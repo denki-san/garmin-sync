@@ -306,12 +306,14 @@ timer 等）。
 ## CSV 导出
 
 ```bash
-garmin-sync export-csv --profile me --start 2026-05-01 --end 2026-05-29 \
-    --out ~/garmin-may.csv
+garmin-sync export-csv --profile me --start 2026-05-01 --end 2026-05-29 --out ~/garmin-may.csv
 ```
 
 每日 JSON 扁平化成 CSV。列顺序**固定**，新指标在末尾追加，老表格不会被
-打乱。表头：
+打乱。
+
+<details>
+<summary>完整表头（44 列）</summary>
 
 ```
 date, sleep_score, sleep_total_min, sleep_deep_min, sleep_light_min, sleep_rem_min,
@@ -327,40 +329,22 @@ training_readiness_score, training_readiness_status, resting_heart_rate,
 vo2_max_running, vo2_max_cycling, activities_count
 ```
 
+</details>
+
 > [!IMPORTANT]
 > 缺失值用**空字符串**而不是 `0` 或 `NaN`——下游工具能区分"没数据"和"值是 0"。
 
 ## 趋势图
 
-README 顶部那 2 张样图就是 `plot` 子命令出的。自己出图：
+README 顶部那 2 张样图就是 `plot` 子命令出的：
 
 ```bash
 pip install 'garmin-sync[plots]'
-garmin-sync plot --profile me --metric hrv         --days 30 --out hrv.png
-garmin-sync plot --profile me --metric sleep_score --days 90 --out sleep.png
+garmin-sync plot --profile me --metric hrv --days 30 --out hrv.png
 ```
 
-缺失日不会插值——手表那晚没采到某个指标，对应位置就断线。稀疏数据日子
-看得见，不会被静默填 0。
-
-单指标线图 + 7 天滑动均值。headless 安全（Agg 后端）。支持的 metric：
-`hrv` / `hrv_5min_high` / `sleep_score` / `sleep_total_min` / `steps` /
-`body_battery_min` / `body_battery_max` / `stress_overall` / `rhr` /
-`vo2_max_running`。
-
-## 作为库使用
-
-```python
-from garmin_sync.auth import authenticate
-from garmin_sync.collect import collect_day
-from garmin_sync.profile import load_profile
-from garmin_sync.storage import write_day_json
-
-profile = load_profile("me")
-client = authenticate(profile)
-data = collect_day(client, "2026-05-28")
-write_day_json(data, profile.output_dir)
-```
+单指标线图 + 7 天滑动均值。缺失日断线不补 0。headless 安全（Agg 后端）。
+支持的 metric 跑 `garmin-sync plot --list-metrics` 查。
 
 ## FAQ
 
