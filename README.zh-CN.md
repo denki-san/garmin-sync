@@ -6,11 +6,17 @@
 
 [English](./README.md) | **简体中文**
 
+[![skills.sh](https://skills.sh/b/denki-san/garmin-sync)](https://skills.sh/denki-san/garmin-sync)
+
 `garmin-sync` 是一个极简的 Python CLI + 库，把佳明账号每日**健康指标**
 拉到本地、写成结构化 JSON 文件。没有 daemon，没有第三方服务器，没有云
 端——只有一个脚本和一个数据目录，AI 助手可以直接读。
 
 ```bash
+# 作为 Agent Skill 安装（Claude Code / Codex / Cursor 等）
+npx skills add denki-san/garmin-sync
+
+# 或者直接当 Python 包
 pip install garmin-sync          # 核心（底层用 garminconnect）
 pip install 'garmin-sync[plots]' # 加上 matplotlib 趋势图
 ```

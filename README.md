@@ -6,12 +6,18 @@
 
 **English** | [简体中文](./README.zh-CN.md)
 
+[![skills.sh](https://skills.sh/b/denki-san/garmin-sync)](https://skills.sh/denki-san/garmin-sync)
+
 `garmin-sync` is a small Python CLI + library that pulls each day's
 **health metrics** from your Garmin account and writes them to disk as
 structured JSON. There's no daemon, no third-party server, no cloud — just
 a script and a folder of files your AI assistant can read.
 
 ```bash
+# As an Agent Skill (Claude Code / Codex / Cursor / etc.)
+npx skills add denki-san/garmin-sync
+
+# Or as a plain Python package
 pip install garmin-sync          # core (garminconnect under the hood)
 pip install 'garmin-sync[plots]' # add matplotlib trend plots
 ```
