@@ -76,6 +76,11 @@ One JSON file per day (e.g. `2026-05-28.json`). Top-level keys:
 
 ## Prerequisite: your data must already be on Garmin Connect
 
+> [!IMPORTANT]
+> `garmin-sync` reads from Garmin's **cloud**, not from your watch. If your
+> watch hasn't synced to the Garmin Connect mobile app — and the app to the
+> cloud — for a given day, that day's JSON will be empty or missing fields.
+
 `garmin-sync` reads from Garmin's web API. It does **not** talk to your
 watch directly. The data flow is:
 
@@ -136,7 +141,8 @@ Tokens cache under `~/.garminconnect-garmin_com/` (or your profile's
 `token_dir`). They auto-refresh while you keep syncing; re-run `setup` if
 you change your Garmin password or hit a stale-token error.
 
-> **MFA accounts**: supported natively. The 6-digit code is prompted
+> [!NOTE]
+> **MFA accounts** are supported natively. The 6-digit code is prompted
 > interactively when needed. See
 > [`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md) for
 > non-interactive (TOTP) workflows.
@@ -247,8 +253,9 @@ training_readiness_score, training_readiness_status, resting_heart_rate,
 vo2_max_running, vo2_max_cycling, activities_count
 ```
 
-Missing values are written as **empty strings**, *not* as `0` or `NaN`, so
-downstream tools can distinguish "no data" from "value was zero".
+> [!IMPORTANT]
+> Missing values are written as **empty strings**, *not* as `0` or `NaN`, so
+> downstream tools can distinguish "no data" from "value was zero".
 
 ## Trend plots
 
@@ -293,12 +300,14 @@ write_day_json(data, profile.output_dir)
 ## FAQ
 
 **Does it work with `garmin.cn` (China region) accounts?**
-Sleep, steps, HRV, SpO2, stress, intensity minutes, daily summary, and
-activities are confirmed working. Body Battery, Resting HR, VO2 Max,
-Training Readiness, and Respiration are **almost certainly 404** on
-`garmin.cn` (based on community reports + path-prefix inference — we
-haven't tested directly on a `.cn` account). If you have a CN account and
-need those, you'll need Garmin support to migrate the account region.
+
+> [!WARNING]
+> Sleep, steps, HRV, SpO2, stress, intensity minutes, daily summary, and
+> activities are confirmed working. Body Battery, Resting HR, VO2 Max,
+> Training Readiness, and Respiration are **almost certainly 404** on
+> `garmin.cn` (based on community reports + path-prefix inference — we
+> haven't tested directly on a `.cn` account). If you have a CN account and
+> need those, you'll need Garmin support to migrate the account region.
 
 **Does it handle MFA?**
 Yes. `setup` prompts for the 6-digit code interactively. Token persistence
