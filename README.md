@@ -3,7 +3,7 @@
 > Sync your Garmin Connect **health data** to local JSON files. Designed for
 > LLM-driven analysis (Claude Code, Codex, Hermes, ChatGPT, etc.).
 
-[English](./README.md) · [简体中文](./README.zh-CN.md)
+**English** | [简体中文](./README.zh-CN.md)
 
 `garmin-sync` is a small Python CLI + library that pulls each day's
 **health metrics** from your Garmin account and writes them to disk as

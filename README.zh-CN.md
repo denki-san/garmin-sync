@@ -3,7 +3,7 @@
 > 把佳明（Garmin Connect）的**健康数据**同步成本地 JSON 文件。专为
 > AI 助手（Claude Code / Codex / Hermes / ChatGPT 等）消费而设计。
 
-[English](./README.md) · [简体中文](./README.zh-CN.md)
+[English](./README.md) | **简体中文**
 
 `garmin-sync` 是一个极简的 Python CLI + 库，把佳明账号每日**健康指标**
 拉到本地、写成结构化 JSON 文件。没有 daemon，没有第三方服务器，没有云
