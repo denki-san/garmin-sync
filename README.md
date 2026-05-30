@@ -121,6 +121,7 @@ everything else (analysis, reports, alerts, plots) is just reading files.
 | Backfill speed | seconds per day | ~30 min for 10 years (first run) | similar to givemydata | resumable, single-pass |
 | Install | `pip install` | `pip install` / `brew tap` | `pip install` / `make` | `pip install` |
 | Auth | garminconnect (curl_cffi) | garminconnect (similar) | own garth-based stack | **self-contained** SSO client |
+| Region | International + **China** (`garmin.cn`) | International only | International only | International only |
 | License | MIT | AGPL-3.0 | GPL-2.0 | Apache-2.0 |
 
 **TL;DR**: if you want the **full Garmin firehose with an MCP server**, go
