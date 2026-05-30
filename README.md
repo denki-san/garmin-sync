@@ -156,94 +156,124 @@ can read directly**, that's this one.
 
 ## Quick start
 
-### With your AI agent (recommended)
+> This section is written so an AI agent can install `garmin-sync` from
+> start to finish without further prompts. Human readers can follow the
+> same steps directly.
 
-Since this is a skill, the easiest path is to let your agent install,
-authenticate, and schedule it for you. Tell Claude Code (or any agent
-with shell access):
+### Step 1 — Place the skill files
 
-> **You**: Install the `garmin-sync` skill, account `you@example.com`, and run it every morning at 10am.
->
-> **Agent**: *(pip installs the package, runs `garmin-sync setup`, asks you for password + MFA if needed, adds a crontab entry, runs a test sync.)*
+Detect which AI agent skill directories exist on this machine:
 
-Then any day:
+| Path | Agent |
+|---|---|
+| `~/.claude` | Claude Code |
+| `~/.openclaw` | OpenClaw |
+| `~/.hermes` | Hermes |
+| `~/.config/opencode` | OpenCode |
 
-> **You**: How did I sleep this week?
->
-> **Agent**: *(reads the last 7 JSON files from `output_dir` and summarizes.)*
-
-> [!IMPORTANT]
-> **Open the Garmin Connect mobile app and pull-to-refresh before the
-> scheduled sync runs** — `garmin-sync` reads from Garmin's cloud, so if
-> the watch hasn't pushed today's data yet, the agent will get back a
-> half-empty file. Easiest fix: keep the phone next to the watch overnight
-> so the morning push happens automatically.
-
-### Manual setup
-
-Prefer to do it by hand (or your agent doesn't have shell access)?
-
-**1. One-time authorization**
+For each detected directory `$AGENT_DIR`, clone this repo into its
+`skills/` subdirectory:
 
 ```bash
-garmin-sync setup --domain garmin.com --email you@example.com
-# Prompts for password (or set $GARMIN_PASSWORD); prompts for MFA code if needed
+mkdir -p "$AGENT_DIR/skills"
+git clone https://github.com/denki-san/garmin-sync \
+  "$AGENT_DIR/skills/garmin-sync"
 ```
 
-Tokens cache under `~/.garminconnect-garmin_com/` (or your profile's
-`token_dir`). They auto-refresh while you keep syncing; re-run `setup` if
-you change your Garmin password or hit a stale-token error.
+If `$AGENT_DIR/skills/garmin-sync` already exists, run
+`git -C "$AGENT_DIR/skills/garmin-sync" pull --ff-only` to update instead.
 
-> [!NOTE]
-> **MFA accounts** are supported natively. The 6-digit code is prompted
-> interactively when needed. See
-> [`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md) for
-> non-interactive (TOTP) workflows.
+If none of the four directories exist, ask the user which AI tool they
+plan to use this skill with, then create that directory and treat it as
+the only target.
 
-**2. Daily sync**
+### Step 2 — Install the Python package
 
 ```bash
-garmin-sync sync --domain garmin.com --days 1     # yesterday
-garmin-sync sync --domain garmin.com --days 30    # backfill 30 days
-garmin-sync sync --domain garmin.com --date 2026-05-15
+pip install git+https://github.com/denki-san/garmin-sync
+# Or, with optional plotting support:
+pip install 'git+https://github.com/denki-san/garmin-sync#egg=garmin-sync[plots]'
 ```
 
-JSON files land in `./health/` by default. Override with `--output-dir`.
+This installs the `garmin-sync` CLI on `$PATH`. All AI agents on this
+machine share the same CLI — install once. Requires Python 3.10 or later.
 
-**3. (Optional) Profiles**
+### Step 3 — Configure a profile
 
-`~/.config/garmin-sync/profiles.toml`:
+Ask the user for:
+
+- their Garmin email
+- their region (`garmin.com` international or `garmin.cn` China)
+- where they want JSON files written (default: `~/.local/share/garmin-sync`)
+
+Write `~/.config/garmin-sync/profiles.toml`:
 
 ```toml
 [profiles.me]
 email      = "you@example.com"
 domain     = "garmin.com"
 token_dir  = "~/.garminconnect-garmin_com"
-output_dir = "~/garmin-data/me"
-
-[profiles.spouse]
-email            = "spouse@example.com"
-domain           = "garmin.cn"
-token_dir        = "~/.garminconnect-spouse-cn"
-output_dir       = "~/garmin-data/spouse"
-password_env_var = "SPOUSE_GARMIN_PASSWORD"
+output_dir = "~/.local/share/garmin-sync"
 ```
+
+For multiple users (family, spouse), see [`docs/multi-user.md`](docs/multi-user.md).
+
+### Step 4 — One-time SSO authorization
+
+Ask the user for their Garmin password (export it as `$GARMIN_PASSWORD`
+or set `password_env_var` in the profile), then run:
 
 ```bash
-garmin-sync sync  --profile me --days 1
+garmin-sync setup --profile me
 ```
 
-Full details: [`docs/multi-user.md`](docs/multi-user.md).
+If Garmin requires MFA, the CLI will interactively prompt for the 6-digit
+code — relay the prompt to the user. Tokens cache under `token_dir` and
+auto-refresh while syncing continues; re-run `setup` only if the password
+changes or a stale-token error occurs.
 
-**4. Scheduling**
+See [`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md) for
+non-interactive (TOTP) workflows.
 
-`garmin-sync` runs **on demand** — installing it does not start a daemon
-or register a cron job. Add a cron entry yourself (or have your agent do
-it; see above):
+### Step 5 — Run a sync
+
+```bash
+garmin-sync sync --profile me --days 1     # yesterday
+garmin-sync sync --profile me --days 30    # backfill 30 days
+```
+
+Verify the file landed:
+
+```bash
+test -f "$(dirname "$(garmin-sync sync --profile me --days 1 2>&1 | grep -oE '/.*\.json' | head -1)")/$(date -v-1d +%Y-%m-%d).json" \
+  && echo OK
+# Linux: replace `date -v-1d` with `date -d yesterday`
+```
+
+If the JSON is missing fields the user expects (Body Battery, HRV, etc.),
+the watch may not have pushed that day's data to Garmin's cloud yet — see
+[Prerequisite](#prerequisite-your-data-must-already-be-on-garmin-connect)
+above.
+
+### Step 6 — (Optional) Schedule a daily sync
+
+`garmin-sync` runs on demand — installing it does **not** start a daemon
+or register a cron job. To keep data fresh automatically, add a cron
+entry:
 
 ```cron
 30 6 * * * GARMIN_PASSWORD='...' /usr/local/bin/garmin-sync sync --profile me --days 1 >> /var/log/garmin-sync.log 2>&1
 ```
+
+Or use the host agent's scheduler (Hermes cron jobs, launchd on macOS,
+systemd timers on Linux, etc.).
+
+> [!IMPORTANT]
+> **Open the Garmin Connect mobile app and pull-to-refresh before the
+> scheduled sync runs.** `garmin-sync` reads from Garmin's cloud, so if
+> the watch hasn't pushed today's data yet, the sync will write a
+> half-empty JSON. Keep the phone next to the watch overnight so the
+> morning push happens automatically.
 
 ## Sample output
 

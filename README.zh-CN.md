@@ -145,91 +145,116 @@ per-day JSON 文件、AI 助手能直接读**，就用这个。
 
 ## 快速上手
 
-### 让 AI agent 帮你装（推荐）
+> 这一段是写给 AI agent 照着做的——把这个仓库 URL 丢给你的 AI 助手，
+> 它能从头到尾把 garmin-sync 装好。人类读者也可以直接照同样步骤跑。
 
-既然是 skill，最省事的路径就是让你的 agent 帮你装好、登好、排好班。
-对 Claude Code（或任何能跑 shell 的 agent）说：
+### Step 1 — 放置 skill 文件
 
-> **你**：给我装一下 `garmin-sync` skill，账号 `you@example.com`，每天早上 10 点定时同步。
->
-> **Agent**：*（pip 装包，跑 `garmin-sync setup`，需要时让你输密码 + MFA，加 crontab，跑一次测试同步。）*
+检测当前机器上哪些 AI agent 的 skill 目录已存在：
 
-之后每天：
+| 路径 | Agent |
+|---|---|
+| `~/.claude` | Claude Code |
+| `~/.openclaw` | OpenClaw |
+| `~/.hermes` | Hermes |
+| `~/.config/opencode` | OpenCode |
 
-> **你**：我这周睡眠怎么样？
->
-> **Agent**：*（读 `output_dir` 下最近 7 个 JSON 文件，给你总结。）*
-
-> [!IMPORTANT]
-> **定时任务跑之前，先打开手机 Garmin Connect App 下拉刷新**——
-> `garmin-sync` 读的是佳明云端，手表当天的数据如果还没推上去，agent
-> 拉回来就是半空的。最省心的办法：手机晚上放手表旁边，早上系统会自
-> 动推一次。
-
-### 手动配置
-
-不想用 agent（或 agent 没 shell 权限）？
-
-**1. 一次性授权**
+对每个检测到的目录 `$AGENT_DIR`，clone 本仓库到它的 `skills/` 子目录：
 
 ```bash
-garmin-sync setup --domain garmin.com --email you@example.com
-# 会提示输入密码（或预设 $GARMIN_PASSWORD）；需要 MFA 时会交互式 prompt
+mkdir -p "$AGENT_DIR/skills"
+git clone https://github.com/denki-san/garmin-sync \
+  "$AGENT_DIR/skills/garmin-sync"
 ```
 
-OAuth token 缓存到 `~/.garminconnect-garmin_com/`（或 profile 配的
-`token_dir`）。token 会在临过期时自动刷新；改密码或者出现 token 失效错
-误时重新跑 `setup` 即可。
+如果 `$AGENT_DIR/skills/garmin-sync` 已存在，改用
+`git -C "$AGENT_DIR/skills/garmin-sync" pull --ff-only` 拉新版。
 
-> [!NOTE]
-> **两步验证账号**原生支持。`setup` 会在 Garmin 要求时**交互式
-> prompt 你输入 6 位 MFA 验证码**。token 持久化意味着一次 setup 输一
-> 次 MFA，之后每天 `sync` 都不用再输。非交互场景（cron / TOTP）见
-> [`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md)。
+如果四个目录都不存在，问用户要把这个 skill 装给哪个 AI 工具用，然后建
+那个目录作为唯一目标。
 
-**2. 每日同步**
+### Step 2 — 安装 Python 包
 
 ```bash
-garmin-sync sync --domain garmin.com --days 1     # 同步昨天
-garmin-sync sync --domain garmin.com --days 30    # 回填最近 30 天
-garmin-sync sync --domain garmin.com --date 2026-05-15
+pip install git+https://github.com/denki-san/garmin-sync
+# 想要趋势图功能，多装一个 extra：
+pip install 'git+https://github.com/denki-san/garmin-sync#egg=garmin-sync[plots]'
 ```
 
-JSON 默认写到 `./health/`，用 `--output-dir` 覆盖。
+这一步把 `garmin-sync` CLI 装到 `$PATH`。同一台机器上所有 AI agent
+共享同一个 CLI——装一次就够。要求 Python 3.10 或以上。
 
-**3.（可选）配置 profile**
+### Step 3 — 配置 profile
 
-`~/.config/garmin-sync/profiles.toml`：
+向用户询问：
+
+- 佳明账号邮箱
+- 区域（`garmin.com` 国际版 / `garmin.cn` 国区版）
+- JSON 文件落盘目录（默认 `~/.local/share/garmin-sync`）
+
+写入 `~/.config/garmin-sync/profiles.toml`：
 
 ```toml
 [profiles.me]
 email      = "you@example.com"
 domain     = "garmin.com"
 token_dir  = "~/.garminconnect-garmin_com"
-output_dir = "~/garmin-data/me"
-
-[profiles.spouse]
-email            = "spouse@example.com"
-domain           = "garmin.cn"
-token_dir        = "~/.garminconnect-spouse-cn"
-output_dir       = "~/garmin-data/spouse"
-password_env_var = "SPOUSE_GARMIN_PASSWORD"
+output_dir = "~/.local/share/garmin-sync"
 ```
+
+多用户配置（家人、伴侣等）见 [`docs/multi-user.md`](docs/multi-user.md)。
+
+### Step 4 — 一次性 SSO 授权
+
+向用户要 Garmin 密码（导出为 `$GARMIN_PASSWORD` 环境变量，或写到
+profile 的 `password_env_var`），然后跑：
 
 ```bash
-garmin-sync sync  --profile me --days 1
+garmin-sync setup --profile me
 ```
 
-完整说明见 [`docs/multi-user.md`](docs/multi-user.md)。
+如果佳明要求 MFA，CLI 会交互式 prompt 6 位验证码——把 prompt 转给用户
+填。Token 缓存在 `token_dir`，同步期间会自动刷新；只有改密码或者出现
+token 失效错误时才需要重新跑 `setup`。
 
-**4. 定时任务**
+非交互场景（cron / TOTP）见
+[`docs/auth-troubleshooting.md`](docs/auth-troubleshooting.md)。
+
+### Step 5 — 跑一次同步
+
+```bash
+garmin-sync sync --profile me --days 1     # 昨天
+garmin-sync sync --profile me --days 30    # 回填 30 天
+```
+
+验证文件已落盘：
+
+```bash
+test -f "$(dirname "$(garmin-sync sync --profile me --days 1 2>&1 | grep -oE '/.*\.json' | head -1)")/$(date -v-1d +%Y-%m-%d).json" \
+  && echo OK
+# Linux：把 `date -v-1d` 换成 `date -d yesterday`
+```
+
+如果输出 JSON 缺用户期望的字段（Body Battery、HRV 等），可能是手表当天
+还没把数据推到佳明云端——见上方[前提说明](#前提数据必须先在-garmin-connect-上)。
+
+### Step 6 — （可选）定时同步
 
 `garmin-sync` 是**按需运行**的——装上不会自动起 daemon 也不会自动注册
-cron。要每天跑就自己加一行 cron（或让 agent 帮你加，见上方）：
+cron。要每天自动跑就加一条 cron：
 
 ```cron
 30 6 * * * GARMIN_PASSWORD='...' /usr/local/bin/garmin-sync sync --profile me --days 1 >> /var/log/garmin-sync.log 2>&1
 ```
+
+或者用 agent 自带的调度器（Hermes cron、macOS launchd、Linux systemd
+timer 等）。
+
+> [!IMPORTANT]
+> **定时任务跑之前，先打开手机 Garmin Connect App 下拉刷新。**
+> `garmin-sync` 读的是佳明云端，手表当天的数据如果还没推上去，sync 拉
+> 回来就是半空的 JSON。最省心：手机晚上放手表旁边，早上系统会自动推
+> 一次。
 
 ## Sample output
 
