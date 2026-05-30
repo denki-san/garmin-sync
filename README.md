@@ -113,15 +113,15 @@ everything else (analysis, reports, alerts, plots) is just reading files.
 
 ### Comparison with adjacent projects
 
-|   | garmin-sync | [nrvim/garmin-givemydata](https://github.com/nrvim/garmin-givemydata) ⭐108 | [tcgoetz/GarminDB](https://github.com/tcgoetz/GarminDB) ⭐3.1k | [arpanghosh8453/garmin-grafana](https://github.com/arpanghosh8453/garmin-grafana) |
+|   | garmin-sync | [nrvim/garmin-givemydata](https://github.com/nrvim/garmin-givemydata) ⭐108 | [tcgoetz/GarminDB](https://github.com/tcgoetz/GarminDB) ⭐3.1k | [diegoscarabelli/garmin-health-data](https://github.com/diegoscarabelli/garmin-health-data) ⭐61 |
 |---|---|---|---|---|
-| Scope | **Health-only** (~14 metrics) | **Everything** — 48 SQLite tables incl. FIT files | **Everything** — daily + activities + FIT files | Everything via InfluxDB |
-| Storage | One JSON file per day | SQLite + raw FIT copies | SQLite + raw FIT copies | Docker + InfluxDB |
-| AI interface | Read JSON files (any tool) | Built-in **MCP server** (45 tools) | Jupyter notebooks | Grafana dashboards |
-| Backfill speed | seconds per day | ~30 min for 10 years (first run) | similar to givemydata | similar (Docker setup) |
-| Install | `pip install` | `pip install` / `brew tap` | `pip install` / `make` | Docker compose |
-| Auth | garminconnect (curl_cffi) | garminconnect (similar) | own garth-based stack | garminconnect |
-| License | MIT | AGPL-3.0 | GPL-2.0 | BSD-3 |
+| Scope | **Health-only** (~14 metrics) | **Everything** — 48 SQLite tables incl. FIT files | **Everything** — daily + activities + FIT files | **Everything** — health + activities (FIT/TCX) + training |
+| Storage | One JSON file per day | SQLite + raw FIT copies | SQLite + raw FIT copies | SQLite + raw files (4-folder lifecycle) |
+| AI interface | Read JSON files (any tool) | Built-in **MCP server** (45 tools) | Jupyter notebooks | Read SQLite (documented schema) |
+| Backfill speed | seconds per day | ~30 min for 10 years (first run) | similar to givemydata | resumable, single-pass |
+| Install | `pip install` | `pip install` / `brew tap` | `pip install` / `make` | `pip install` |
+| Auth | garminconnect (curl_cffi) | garminconnect (similar) | own garth-based stack | **self-contained** SSO client |
+| License | MIT | AGPL-3.0 | GPL-2.0 | Apache-2.0 |
 
 **TL;DR**: if you want the **full Garmin firehose with an MCP server**, go
 `garmin-givemydata`. If you want **mature SQL tables + Jupyter notebooks**,
