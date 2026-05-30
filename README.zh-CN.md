@@ -25,16 +25,6 @@ pip install 'garmin-sync[plots]' # 加上 matplotlib 趋势图
   <br/><sub><b>睡眠得分</b></sub>
 </td>
 </tr>
-<tr>
-<td width="50%" align="center">
-  <a href="docs/screenshots/hero-steps.png"><img src="docs/screenshots/hero-steps.png" alt="每日步数"></a>
-  <br/><sub><b>每日步数</b></sub>
-</td>
-<td width="50%" align="center">
-  <a href="docs/screenshots/hero-body-battery.png"><img src="docs/screenshots/hero-body-battery.png" alt="Body Battery 最低值"></a>
-  <br/><sub><b>Body Battery（当日最低）</b></sub>
-</td>
-</tr>
 </table>
 
 <sub><i>样图：维护者本人账号的 7 天数据（2026-05-17 → 23）。每张由 <code>garmin-sync plot --metric &lt;name&gt; --days 7 --rolling 3</code> 生成。</i></sub>
@@ -228,13 +218,28 @@ garmin-sync export-csv --profile me --start 2026-05-01 --end 2026-05-29 \
     --out ~/garmin-may.csv
 ```
 
-每日 JSON 扁平化成 CSV，列结构稳定。缺失值用空字符串而不是 `0`——所以
-Excel/Numbers 能区分"没数据"和"值是 0"。详见
-[`docs/csv-and-plots.md`](docs/csv-and-plots.md)。
+每日 JSON 扁平化成 CSV。列顺序**固定**，新指标在末尾追加，老表格不会被
+打乱。表头：
+
+```
+date, sleep_score, sleep_total_min, sleep_deep_min, sleep_light_min, sleep_rem_min,
+sleep_awake_min, sleep_avg_spo2, sleep_lowest_spo2, sleep_avg_respiration,
+sleep_avg_stress, steps_total, steps_distance_km, steps_goal, hrv_weekly_avg_ms,
+hrv_last_night_ms, hrv_status, hrv_5min_high_ms, hrv_baseline_low,
+hrv_baseline_upper, spo2_avg_pct, spo2_min_pct, spo2_avg_hr_bpm,
+body_battery_charged, body_battery_drained, body_battery_max, body_battery_min,
+stress_overall, stress_level, stress_rest_min, stress_low_min, stress_medium_min,
+stress_high_min, respiration_low, respiration_high, respiration_avg,
+intensity_moderate_min, intensity_vigorous_min, intensity_weekly_goal_min,
+training_readiness_score, training_readiness_status, resting_heart_rate,
+vo2_max_running, vo2_max_cycling, activities_count
+```
+
+缺失值用**空字符串**而不是 `0` 或 `NaN`——下游工具能区分"没数据"和"值是 0"。
 
 ## 趋势图
 
-README 顶部那 4 张样图就是 `plot` 子命令出的。自己出图：
+README 顶部那 2 张样图就是 `plot` 子命令出的。自己出图：
 
 ```bash
 pip install 'garmin-sync[plots]'
