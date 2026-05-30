@@ -3,6 +3,8 @@
 > A **Garmin skill for AI agents** — syncs your Garmin Connect health
 > data to local JSON so Claude Code / Codex / Hermes / ChatGPT can
 > answer your daily "how am I doing?" questions.
+>
+> *Natively supports both `garmin.com` and `garmin.cn` (China region).*
 
 **English** | [简体中文](./README.zh-CN.md)
 

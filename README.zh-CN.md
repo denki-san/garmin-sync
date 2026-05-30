@@ -3,6 +3,8 @@
 > 一个**给 AI Agent 用的佳明 skill** —— 把 Garmin Connect 的健康数据同
 > 步成本地 JSON，让 Claude Code / Codex / Hermes / ChatGPT 帮你回答每天
 > 那句"我今天状态怎么样？"。
+>
+> *原生支持 `garmin.com`（国际）+ `garmin.cn`（国内）双站。*
 
 [English](./README.md) | **简体中文**
 
